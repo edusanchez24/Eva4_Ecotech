@@ -1,33 +1,36 @@
-from pymongo import MongoClient
 from bson.objectid import ObjectId
 
-class ClienteCRUD:
-    def __init__(self):
-        # Conexión persistente local en Windows 11
-        self.client = MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=2000)
-        self.db = self.client["comerciotech"]
-        self.coleccion = self.db["cliente"]
+def registrar_cliente(db, rut, nombre, correo, telefono, direccion_inicial=None):
+    """Registra un nuevo cliente con un arreglo de direcciones embebido."""
+    if db.clientes.find_one({"rut": rut}):
+        return False, "El RUT ya se encuentra registrado."
+        
+    direcciones = []
+    if direccion_inicial:
+        direccion_inicial["principal"] = True
+        direcciones.append(direccion_inicial)
+        
+    nuevo_cliente = {
+        "rut": rut,
+        "nombre": nombre,
+        "correo": correo,
+        "telefono": telefono,
+        "estado": "activo",
+        "direcciones": direcciones
+    }
+    
+    db.clientes.insert_one(nuevo_cliente)
+    return True, "Cliente registrado exitosamente."
 
-    def buscar_por_rut(self, rut_cliente):
-        """Busca un único documento por su clave natural RUT"""
-        return self.coleccion.find_one({"rut": rut_cliente.strip()})
+def buscar_cliente_por_rut(db, rut):
+    """Busca un cliente específico por su RUT."""
+    return db.clientes.find_one({"rut": rut})
 
-    def obtener_todo_cliente(self):
-        """Retorna todos los documentos de la colección cliente"""
-        return list(self.coleccion.find())
-
-    def crear_cliente(self, datos_cliente):
-        """Inserta un nuevo documento estructurado en el motor"""
-        return self.coleccion.insert_one(datos_cliente).inserted_id
-
-    def actualizar_cliente(self, id_cliente, nuevos_datos):
-        """Actualiza campos específicos mediante su _id de MongoDB"""
-        id_filtro = ObjectId(id_cliente) if len(str(id_cliente)) == 24 else id_cliente
-        resultado = self.coleccion.update_one({"_id": id_filtro}, {"$set": nuevos_datos})
-        return resultado.modified_count > 0
-
-    def eliminar_cliente(self, id_cliente):
-        """Remueve permanentemente un registro de la base de datos"""
-        id_filtro = ObjectId(id_cliente) if len(str(id_cliente)) == 24 else id_cliente
-        resultado = self.coleccion.delete_one({"_id": id_filtro})
-        return resultado.deleted_count > 0
+def agregar_direccion_cliente(db, rut, nueva_direccion):
+    """Agrega una nueva dirección al arreglo embebido del cliente."""
+    nueva_direccion["principal"] = False
+    resultado = db.clientes.update_one(
+        {"rut": rut},
+        {"$push": {"direcciones": nueva_direccion}}
+    )
+    return resultado.modified_count > 0

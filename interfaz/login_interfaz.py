@@ -1,89 +1,45 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-from logicasCRUD.cliente_crud import ClienteCRUD
+from tkinter import messagebox
+from interfaz.cliente_interfaz import VentanaCliente
+from interfaz.admin_interfaz import VentanaAdmin
 
-class LoginInterfaz:
-    def __init__(self, root):
+class VentanaLogin:
+    def __init__(self, root, db):
         self.root = root
-        self.root.title("ComercioTech - Autenticación Local")
-        self.root.geometry("400x240")
-        self.root.resizable(False, False)
+        self.db = db
+        self.root.title("EcoTech - Iniciar Sesión")
+        self.root.geometry("350x250")
         
-        try:
-            self.crud_cliente = ClienteCRUD()
-        except Exception as e:
-            messagebox.showerror("Error Crítico", f"MongoDB local desconectado en Windows 11:\n{e}")
+        tk.Label(root, text="EcoTech Sistema Integrado", font=("Arial", 14, "bold")).pack(pady=15)
         
-        self.crear_componentes()
-
-    def crear_componentes(self):
-        self.frame_principal = ttk.Frame(self.root, padding="25")
-        self.frame_principal.pack(fill="both", expand=True)
-
-        lbl_titulo = ttk.Label(
-            self.frame_principal, 
-            text="SISTEMA DE AUTENTICACIÓN NoSQL", 
-            font=("Arial", 11, "bold"),
-            foreground="#2c3e50"
-        )
-        lbl_titulo.pack(pady=(0, 15))
-
-        lbl_rut = ttk.Label(self.frame_principal, text="Ingrese RUT de Usuario:")
-        lbl_rut.pack(anchor="w", pady=(0, 5))
+        tk.Label(root, text="RUT Usuario (o 'admin'):").pack()
+        self.txt_user = tk.Entry(root, justify="center")
+        self.txt_user.pack(pady=5)
+        self.txt_user.insert(0, "12345678-9") # Ejemplo rápido
         
-        self.entry_rut = ttk.Entry(self.frame_principal, font=("Arial", 10), width=30)
-        self.entry_rut.pack(pady=(0, 20))
-        self.entry_rut.focus()
+        tk.Label(root, text="Contraseña / Rol (admin/cliente):").pack()
+        self.txt_pass = tk.Entry(root, show="*", justify="center")
+        self.txt_pass.pack(pady=5)
+        self.txt_pass.insert(0, "cliente") # Ejemplo rápido
 
-        btn_ingresar = ttk.Button(
-            self.frame_principal, 
-            text="Validar Identidad", 
-            command=self.acc_ejecutar_login
-        )
-        btn_ingresar.pack(fill="x", ipady=5)
-
-    def acc_ejecutar_login(self):
-        rut_ingresado = self.entry_rut.get().strip()
-
-        if not rut_ingresado:
-            messagebox.showwarning("Validación", "El campo RUT no puede estar vacío.")
-            return
-
-        # REQUERIMIENTO EXPLÍCITO: Validación del RUT Administrador Único
-        if rut_ingresado == "20123456-7":
-            usuario_db = self.crud_cliente.buscar_por_rut(rut_ingresado)
-            if not usuario_db:
-                # Fallback de inicialización automática en caso de base de datos vacía
-                usuario_db = {
-                    "rut": "20123456-7",
-                    "nombre": "Eduardo Sánchez (Root)",
-                    "correo": "eduardo@comerciotech.cl",
-                    "rol": "admin"
-                }
+        tk.Button(root, text="Ingresar al Sistema", bg="#4CAF50", fg="white", command=self.ingresar).pack(pady=15)
+        
+    def ingresar(self):
+        usuario = self.txt_user.get().strip()
+        clave = self.txt_pass.get().strip().lower()
+        
+        if usuario == "admin" or clave == "admin":
+            self.root.destroy()
+            root_admin = tk.Tk()
+            VentanaAdmin(root_admin, self.db)
+            root_admin.mainloop()
+        else:
+            # Validar si el cliente existe en la BD
+            cliente = self.db.clientes.find_one({"rut": usuario})
+            if cliente:
+                self.root.destroy()
+                root_cliente = tk.Tk()
+                VentanaCliente(root_cliente, self.db, usuario)
+                root_cliente.mainloop()
             else:
-                usuario_db["rol"] = "admin" # Forzado de seguridad
-
-            messagebox.showinfo("Acceso Autorizado", "Credencial de Administrador detectada.")
-            self.frame_principal.destroy()
-            from interfaz.admin_interfaz import AdminInterfaz
-            AdminInterfaz(self.root, usuario_db)
-            return
-
-        # Flujo Operacional para Clientes Comunes
-        try:
-            usuario_db = self.crud_cliente.buscar_por_rut(rut_ingresado)
-            
-            if not usuario_db:
-                messagebox.showerror("Acceso Denegado", f"El RUT {rut_ingresado} no existe en la colección cliente.")
-                return
-
-            # Sanitización de rol para clientes comunes
-            nombre = usuario_db.get("nombre", "Cliente")
-            messagebox.showinfo("Acceso Autorizado", f"Sesión iniciada: {nombre}")
-            
-            self.frame_principal.destroy()
-            from interfaz.cliente_interfaz import ClienteInterfaz
-            ClienteInterfaz(self.root, usuario_db)
-
-        except Exception as e:
-            messagebox.showerror("Error", f"Fallo al leer base de datos: {e}")
+                messagebox.showerror("Error de Acceso", "RUT no registrado. Registre al cliente en el panel de Admin.")

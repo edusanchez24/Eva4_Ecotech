@@ -25,7 +25,7 @@ def obtener_db():
     pass_enc = urllib.parse.quote_plus(password)
 
     # 3. Construir el string de conexión dinámico
-    uri = f"mongodb+srv://{user_enc}:{pass_enc}@{host}/?retryWrites=true&w=majority"
+    uri = f"mongodb+srv://{user_enc}:{pass_enc}@{host}/{db_name}?retryWrites=true&w=majority"
 
     try:
         client = MongoClient(uri, serverSelectionTimeoutMS=5000)

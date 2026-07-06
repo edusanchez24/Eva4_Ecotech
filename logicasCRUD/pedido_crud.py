@@ -1,41 +1,61 @@
-from pymongo import MongoClient
 from bson.objectid import ObjectId
+from datetime import datetime
 
-class PedidoCRUD:
-    def __init__(self):
-        self.client = MongoClient("mongodb://localhost:27017/", serverSelectionTimeoutMS=2000)
-        self.db = self.client["comerciotech"]
-        self.coleccion = self.db["pedido"]
+def crear_pedido(db, rut_cliente, items_carrito, direccion_entrega):
+    """
+    items_carrito: lista de dicts [{'id_producto': str, 'cantidad': int, 'precio_unitario': int, 'nombre': str}]
+    """
+    # 1. Validar Stock de todos los productos primero
+    for item in items_carrito:
+        prod = db.productos.find_one({"_id": ObjectId(item['id_producto'])})
+        if not prod or prod['stock'] < item['cantidad']:
+            return False, f"Stock insuficiente para: {item['nombre']}"
 
-    def obtener_todo_pedido(self):
-        """Recupera el historial completo de transacciones"""
-        return list(self.coleccion.find())
+    # 2. Descontar Stock y construir subdocumentos de detalle
+    total_pedido = 0
+    detalle_final = []
+    
+    for item in items_carrito:
+        # Decrementar stock de forma atómica en MongoDB
+        db.productos.update_one(
+            {"_id": ObjectId(item['id_producto'])},
+            {"$inc": {"stock": -item['cantidad']}}
+        )
+        
+        subtotal = item['cantidad'] * item['precio_unitario']
+        total_pedido += subtotal
+        
+        detalle_final.append({
+            "id_producto": ObjectId(item['id_producto']),
+            "nombre_producto": item['nombre'],
+            "cantidad": item['cantidad'],
+            "precio_unitario": item['precio_unitario'],
+            "subtotal": subtotal
+        })
 
-    def filtrar_pedido_admin(self, estado=None, fecha=None):
-        """Construye queries dinámicas para filtros simultáneos en la UI"""
-        query = {}
-        if estado and estado != "Todos":
-            query["estado_pedido"] = estado
-        if fecha:
-            query["fecha_pedido"] = fecha.strip()
-        return list(self.coleccion.find(query))
+    # 3. Guardar el documento Pedido
+    nuevo_pedido = {
+        "id_cliente": rut_cliente,
+        "fecha_pedido": datetime.now(),
+        "estado_pedido": "Ingresado",
+        "total_pedido": total_pedido,
+        "direccion_entrega": direccion_entrega,
+        "detalle_productos": detalle_final
+    }
+    
+    db.pedidos.insert_one(nuevo_pedido)
+    return True, "Pedido procesado y registrado con éxito."
 
-    def buscar_pedidos_por_cliente(self, rut_cliente):
-        """Cruza información usando el RUT como clave foránea NoSQL"""
-        return list(self.coleccion.find({"rut_cliente": rut_cliente.strip()}))
+def listar_pedidos_por_cliente(db, rut_cliente):
+    return list(db.pedidos.find({"id_cliente": rut_cliente}))
 
-    def cambiar_estado_pedido(self, id_pedido, nuevo_estado):
-        """Modifica de forma atómica el estado de una orden"""
-        try:
-            id_filtro = ObjectId(id_pedido) if len(str(id_pedido)) == 24 else id_pedido
-            resultado = self.coleccion.update_one(
-                {"_id": id_filtro},
-                {"$set": {"estado_pedido": nuevo_estado}}
-            )
-            return resultado.modified_count > 0
-        except Exception:
-            return False
+def listar_todos_los_pedidos(db):
+    return list(db.pedidos.find())
 
-    def crear_pedido(self, datos_pedido):
-        """Registra un nuevo carro de compras procesado"""
-        return self.coleccion.insert_one(datos_pedido).inserted_id
+def actualizar_estado_pedido(db, id_pedido, nuevo_estado):
+    """Permite al administrador cambiar el estado (Ingresado -> En Proceso -> Entregado)."""
+    db.pedidos.update_one(
+        {"_id": ObjectId(id_pedido)},
+        {"$set": {"estado_pedido": nuevo_estado}}
+    )
+    return True
