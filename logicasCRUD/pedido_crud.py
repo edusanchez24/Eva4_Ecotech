@@ -3,13 +3,14 @@ from datetime import datetime
 
 def crear_pedido(db, rut_cliente, items_carrito, direccion_entrega):
     """
-    items_carrito: lista de dicts [{'id_producto': str, 'cantidad': int, 'precio_unitario': int, 'nombre': str}]
+    Crea un nuevo pedido asociándolo al RUT del cliente, descontando stock 
+    y configurando el estado inicial como 'Ingresado'.
     """
     # 1. Validar Stock de todos los productos primero
     for item in items_carrito:
         prod = db.productos.find_one({"_id": ObjectId(item['id_producto'])})
-        if not prod or prod['stock'] < item['cantidad']:
-            return False, f"Stock insuficiente para: {item['nombre']}"
+        if not prod or prod.get('stock', 0) < item['cantidad']:
+            return False, f"Stock insuficiente para: {item['nombre_producto']}"
 
     # 2. Descontar Stock y construir subdocumentos de detalle
     total_pedido = 0
@@ -27,17 +28,17 @@ def crear_pedido(db, rut_cliente, items_carrito, direccion_entrega):
         
         detalle_final.append({
             "id_producto": ObjectId(item['id_producto']),
-            "nombre_producto": item['nombre'],
+            "nombre_producto": item['nombre_producto'], # <-- CORREGIDO: Antes decía item['nombre']
             "cantidad": item['cantidad'],
             "precio_unitario": item['precio_unitario'],
             "subtotal": subtotal
         })
 
-    # 3. Guardar el documento Pedido
+    # 3. Guardar el documento Pedido con estado inicial 'Ingresado'
     nuevo_pedido = {
         "id_cliente": rut_cliente,
         "fecha_pedido": datetime.now(),
-        "estado_pedido": "Ingresado",
+        "estado_pedido": "Ingresado", # <-- Asegura que empiece en Ingresado
         "total_pedido": total_pedido,
         "direccion_entrega": direccion_entrega,
         "detalle_productos": detalle_final

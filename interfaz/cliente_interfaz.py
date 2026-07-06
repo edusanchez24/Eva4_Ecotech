@@ -299,33 +299,116 @@ class VentanaCliente:
         valores = self.tabla_gestion_p.item(sel)['values']
         id_ped, estado = valores[0], valores[3]
         
-        # REGLA DE NEGOCIO: Solo se puede modificar si el estado es 'Ingresado'
+        # REGLA DE NEGOCIO OBLIGATORIA: Solo en estado 'Ingresado'
         if estado != "Ingresado":
             messagebox.showerror("Denegado", f"Los pedidos en estado '{estado}' NO pueden ser modificados por el cliente.")
             return
             
-        # Simulación de modificación rápida: Duplicar la cantidad de ítems del pedido como muestra de edición
+        # Obtener el estado actual del pedido desde MongoDB
         pedido = self.db.pedidos.find_one({"_id": ObjectId(id_ped)})
-        nuevo_total = 0
-        detalles_actualizados = []
+        if not pedido:
+            messagebox.showerror("Error", "No se encontró el pedido en la base de datos.")
+            return
+
+        # --- VENTANA EMERGENTE PARA EDITAR CANTIDADES ---
+        ventana_edit = tk.Toplevel(self.root)
+        ventana_edit.title(f"Modificar Cantidades - Pedido {id_ped[:8]}...")
+        ventana_edit.geometry("450x350")
+        ventana_edit.grab_set() # Bloquea la ventana principal mientras esta esté abierta
         
-        for item in pedido.get("detalle_productos", []):
-            # Verificar si hay stock para añadir 1 unidad más de cada cosa
-            prod = self.db.productos.find_one({"_id": item["id_producto"]})
-            if prod and prod.get("stock", 0) >= 1:
-                self.db.productos.update_one({"_id": item["id_producto"]}, {"$inc": {"stock": -1}})
-                item["cantidad"] += 1
-                item["subtotal"] = item["cantidad"] * item["precio_unitario"]
-            nuevo_total += item["subtotal"]
-            detalles_actualizados.append(item)
+        tk.Label(ventana_edit, text="Modificar Cantidades del Pedido", font=("Arial", 11, "bold")).pack(pady=10)
+        
+        # Contenedor para las líneas de productos
+        frame_lineas = tk.Frame(ventana_edit)
+        frame_lineas.pack(pady=10, fill="both", expand=True, padx=20)
+        
+        # Diccionario para almacenar las cajas de texto de las nuevas cantidades
+        entradas_cantidades = {}
+        
+        # Crear dinámicamente un label y un entry por cada producto en el subdocumento embebido
+        for i, item in enumerate(pedido.get("detalle_productos", [])):
+            id_prod_str = str(item["id_producto"])
             
-        self.db.pedidos.update_one(
-            {"_id": ObjectId(id_ped)},
-            {"$set": {"detalle_productos": detalles_actualizados, "total_pedido": nuevo_total}}
-        )
-        messagebox.showinfo("Modificado", "Se modificó el pedido agregando 1 unidad extra a sus líneas (Validando Stock).")
-        self.buscar_mis_pedidos()
-        self.restablecer_catalogo()
+            lbl_prod = tk.Label(frame_lineas, text=f"{item['nombre_producto']} (Actual: {item['cantidad']}):", font=("Arial", 10))
+            lbl_prod.grid(row=i, column=0, sticky="w", pady=5, padx=5)
+            
+            ent_cant = tk.Entry(frame_lineas, width=8, justify="center")
+            ent_cant.grid(row=i, column=1, pady=5, padx=5)
+            ent_cant.insert(0, str(item["cantidad"])) # Dejar la cantidad actual por defecto
+            
+            # Guardamos la referencia indexada por el ID del producto
+            entradas_cantidades[id_prod_str] = {
+                "entry": ent_cant,
+                "cantidad_anterior": item["cantidad"],
+                "precio_unitario": item["precio_unitario"],
+                "nombre_producto": item["nombre_producto"]
+            }
+            
+        def guardar_cambios_cantidades():
+            nuevas_lineas = []
+            nuevo_total_pedido = 0
+            
+            # 1. Validar primero que todas las entradas sean números válidos y comprobar stock
+            for id_prod_str, datos in entradas_cantidades.items():
+                try:
+                    nueva_cant = int(datos["entry"].get().strip())
+                    if nueva_cant < 0:
+                        raise ValueError()
+                except ValueError:
+                    messagebox.showerror("Error", f"La cantidad para {datos['nombre_producto']} debe ser un número entero mayor o igual a 0.")
+                    return
+                
+                # Si la cantidad cambia, calcular la diferencia para ajustar el stock en la BD
+                diferencia = nueva_cant - datos["cantidad_anterior"]
+                
+                if diferencia > 0:
+                    # Validar si hay stock suficiente en la colección de productos para el aumento
+                    prod_db = self.db.productos.find_one({"_id": ObjectId(id_prod_str)})
+                    if not prod_db or prod_db.get("stock", 0) < diferencia:
+                        messagebox.showerror("Stock Insuficiente", f"No hay suficiente stock para aumentar {datos['nombre_producto']}. Disponible extra: {prod_db.get('stock', 0)}")
+                        return
+                
+                # Guardar temporalmente los datos validados para el update
+                if nueva_cant > 0: # Si es 0, simplemente no se añade al detalle recalculado
+                    subtotal = nueva_cant * datos["precio_unitario"]
+                    nuevo_total_pedido += subtotal
+                    nuevas_lineas.append({
+                        "id_producto": ObjectId(id_prod_str),
+                        "nombre_producto": datos["nombre_producto"],
+                        "cantidad": nueva_cant,
+                        "precio_unitario": datos["precio_unitario"],
+                        "subtotal": subtotal
+                    })
+            
+            # 2. Aplicar los cambios en la Base de Datos de manera atómica
+            for id_prod_str, datos in entradas_cantidades.items():
+                nueva_cant = int(datos["entry"].get().strip())
+                diferencia = nueva_cant - datos["cantidad_anterior"]
+                
+                if diferencia != 0:
+                    # Si la diferencia es positiva, resta stock. Si es negativa, devuelve stock (gracias al signo negativo en $inc)
+                    self.db.productos.update_one(
+                        {"_id": ObjectId(id_prod_str)},
+                        {"$inc": {"stock": -diferencia}}
+                    )
+            
+            # 3. Actualizar el documento del pedido con el nuevo arreglo de subdocumentos y el nuevo total
+            self.db.pedidos.update_one(
+                {"_id": ObjectId(id_ped)},
+                {"$set": {
+                    "detalle_productos": nuevas_lineas,
+                    "total_pedido": nuevo_total_pedido
+                }}
+            )
+            
+            messagebox.showinfo("Éxito", "Cantidades del pedido modificadas y stock actualizado.")
+            ventana_edit.destroy()
+            self.buscar_mis_pedidos() # Refresca la tabla de gestión de pedidos
+            self.restablecer_catalogo() # Refresca el stock visible en el catálogo
+            self.cargar_historial_pedidos() # Refresca el historial de la pestaña 1
+
+        # Botón para confirmar los cambios de la ventana emergente
+        tk.Button(ventana_edit, text="Guardar Cambios", bg="#4CAF50", fg="white", font=("Arial", 10, "bold"), command=guardar_cambios_cantidades).pack(pady=15)
 
     def eliminar_pedido_ingresado(self):
         sel = self.tabla_gestion_p.selection()
