@@ -4,7 +4,7 @@ def crear_producto(db, nombre, categoria, precio, stock):
     """Inserta un nuevo producto al catálogo."""
     producto = {
         "nombre_producto": nombre,
-        "categoria": category,
+        "categoria": categoria,
         "precio_unitario": int(precio),
         "stock": int(stock),
         "estado": "disponible"

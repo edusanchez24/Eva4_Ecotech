@@ -1,0 +1,182 @@
+[
+  {
+    "nombre_producto": "Notebook Pro de Alta Eficiencia 14\"",
+    "marca": "EcoVolt",
+    "categoria": "Computadores",
+    "precio_unitario": 799990,
+    "stock": 15,
+    "descripcion": "Procesador de bajo consumo, 16GB RAM, 512GB SSD. Chasis de aluminio reciclado y batería de larga duración.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Monitor LED IPS 27\" Eco-Savvy",
+    "marca": "ViewGreen",
+    "categoria": "Monitores",
+    "precio_unitario": 149990,
+    "stock": 20,
+    "descripcion": "Resolución Full HD con certificación de ahorro energético Energy Star y modo de lectura de bajo consumo.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Teclado Mecánico Inalámbrico Solar",
+    "marca": "LogiGreen",
+    "categoria": "Periféricos",
+    "precio_unitario": 59990,
+    "stock": 35,
+    "descripcion": "Teclado con celdas solares integradas que se recarga con luz natural o artificial. Conexión Bluetooth estable.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Mouse Ergonómico Recargable",
+    "marca": "LogiGreen",
+    "categoria": "Periféricos",
+    "precio_unitario": 24990,
+    "stock": 50,
+    "descripcion": "Mouse inalámbrico con batería interna de litio recargable mediante USB-C. Evita el uso de pilas desechables.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Router Wi-Fi 6 Inteligente AX3000",
+    "marca": "NetShield",
+    "categoria": "Redes",
+    "precio_unitario": 69990,
+    "stock": 18,
+    "descripcion": "Alta velocidad de transferencia con administración térmica avanzada y bajo consumo energético en reposo.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Disco Duro Externo SSD 1TB Rugged",
+    "marca": "DataVault",
+    "categoria": "Almacenamiento",
+    "precio_unitario": 89990,
+    "stock": 22,
+    "descripcion": "Unidad de estado sólido portátil, resistente a impactos y caídas. Conexión USB 3.2 de alta velocidad.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Impresora Láser Monocromática EcoPrint",
+    "marca": "PrintGreen",
+    "categoria": "Impresoras",
+    "precio_unitario": 129990,
+    "stock": 12,
+    "descripcion": "Impresión rápida a doble cara automática para ahorro de papel. Sistema de tóner de alta eficiencia.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Audífonos Noise Cancelling Bluetooth",
+    "marca": "SoundEco",
+    "categoria": "Audio",
+    "precio_unitario": 119990,
+    "stock": 25,
+    "descripcion": "Cancelación activa de ruido, autonomía de hasta 40 horas continuas y carga rápida inteligente.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Cargador Solar Portátil PowerBank 20000mAh",
+    "marca": "EcoGreen Power",
+    "categoria": "Accesorios",
+    "precio_unitario": 34990,
+    "stock": 40,
+    "descripcion": "Batería externa con panel solar integrado para recargas de emergencia al aire libre. Doble salida USB.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Hub USB-C de 7 Puertos de Aluminio",
+    "marca": "VoltEdge Tech",
+    "categoria": "Accesorios",
+    "precio_unitario": 21990,
+    "stock": 30,
+    "descripcion": "Extensión con puertos HDMI 4K, lectores de tarjetas SD/TF y soporte Power Delivery para carga limpia.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Tablet de Estudio de Bajo Consumo 10\"",
+    "marca": "EcoVolt",
+    "categoria": "Computadores",
+    "precio_unitario": 179990,
+    "stock": 14,
+    "descripcion": "Pantalla de protección ocular, ideal para teleducación y lectura de documentos informáticos.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Cámara de Seguridad Exterior Solar Wi-Fi",
+    "marca": "CyberShield",
+    "categoria": "Seguridad Informática",
+    "precio_unitario": 74990,
+    "stock": 16,
+    "descripcion": "Cámara IP Full HD autónoma alimentada por micro panel solar. Alertas de movimiento encriptadas al celular.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Kit Limpiador Ecológico de Pantallas",
+    "marca": "EcoTech Labs",
+    "categoria": "Accesorios",
+    "precio_unitario": 8990,
+    "stock": 60,
+    "descripcion": "Líquido biodegradable libre de alcohol y amoníaco. Incluye paño de microfibra lavable de alta densidad.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Regleta Inteligente Wi-Fi con Medidor de Consumo",
+    "marca": "EcoTech Labs",
+    "categoria": "Domótica e IoT",
+    "precio_unitario": 27990,
+    "stock": 45,
+    "descripcion": "4 enchufes programables independientes. Muestra el gasto en kWh en tiempo real para evitar consumo vampiro.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Servidor NAS de 2 Bahías Doméstico",
+    "marca": "DataVault",
+    "categoria": "Almacenamiento",
+    "precio_unitario": 210000,
+    "stock": 6,
+    "descripcion": "Nube privada para respaldos automatizados en red local. Bajo perfil de ruido y gestión eficiente de discos.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Enchufe Inteligente Mini Zigbee",
+    "marca": "EcoTech Labs",
+    "categoria": "Domótica e IoT",
+    "precio_unitario": 11990,
+    "stock": 80,
+    "descripcion": "Interruptor programable compatible con asistentes de voz. Requiere hub centralizado para domótica integrada.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Tarjeta de Red PCIe Wi-Fi 6E + Bluetooth",
+    "marca": "NetShield",
+    "categoria": "Redes",
+    "precio_unitario": 39990,
+    "stock": 20,
+    "descripcion": "Adaptador interno para PC de escritorio con antenas externas de alta ganancia. Soporta banda de 6 GHz.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Parlante Inalámbrico Resistente al Agua",
+    "marca": "SoundEco",
+    "categoria": "Audio",
+    "precio_unitario": 45990,
+    "stock": 28,
+    "descripcion": "Certificación IPX7 para agua y polvo. Construido con plásticos recuperados del océano y empaque reciclable.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Cable HDMI 2.1 Premium Trenzado 2m",
+    "marca": "VoltEdge Tech",
+    "categoria": "Accesorios",
+    "precio_unitario": 14990,
+    "stock": 70,
+    "descripcion": "Soporta resoluciones 8K a 60Hz y 4K a 120Hz con contactos chapados en oro para máxima fidelidad de señal.",
+    "estado": "disponible"
+  },
+  {
+    "nombre_producto": "Gabinete Computador ATX con Panel de Vidrio",
+    "marca": "VoltEdge Tech",
+    "categoria": "Componentes Eléctricos",
+    "precio_unitario": 54990,
+    "stock": 11,
+    "descripcion": "Excelente flujo de aire con filtros antipolvo magnéticos lavables e iluminación LED de bajo consumo.",
+    "estado": "disponible"
+  }
+]

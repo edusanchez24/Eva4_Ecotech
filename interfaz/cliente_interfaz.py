@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 from bson.objectid import ObjectId
 from datetime import datetime
-from logicasCRUD.producto_crud import listar_productos_disponibles
 from logicasCRUD.pedido_crud import crear_pedido, eliminar_pedido_cliente
 
 class VentanaCliente:
@@ -30,7 +29,7 @@ class VentanaCliente:
         self.crear_modulo_3_pedidos()
 
     # =========================================================================
-    # MÓDULO 1: GESTIÓN DE PERFIL (CON DIRECCIÓN DETALLADA Y FECHA REGISTRO)
+    # MÓDULO 1: GESTIÓN DE PERFIL
     # =========================================================================
     def crear_modulo_1_perfil(self):
         tk.Label(self.tab_perfil, text="Mis Datos Personales y Dirección Obligatoria", font=("Arial", 12, "bold")).pack(pady=5)
@@ -38,7 +37,6 @@ class VentanaCliente:
         frame_datos = tk.Frame(self.tab_perfil)
         frame_datos.pack(pady=5)
         
-        # Datos Básicos
         tk.Label(frame_datos, text="Nombre:").grid(row=0, column=0, padx=5, pady=3, sticky="e")
         self.ent_nom = tk.Entry(frame_datos, width=25)
         self.ent_nom.grid(row=0, column=1, padx=5, pady=3)
@@ -51,7 +49,6 @@ class VentanaCliente:
         self.ent_tel = tk.Entry(frame_datos, width=25)
         self.ent_tel.grid(row=2, column=1, padx=5, pady=3)
 
-        # Campos de Dirección Obligatoria
         tk.Label(frame_datos, text="Calle:").grid(row=0, column=2, padx=5, pady=3, sticky="e")
         self.ent_calle = tk.Entry(frame_datos, width=25)
         self.ent_calle.grid(row=0, column=3, padx=5, pady=3)
@@ -77,7 +74,6 @@ class VentanaCliente:
         self.combo_tipo_dir.set("Casa")
         self.combo_tipo_dir.grid(row=5, column=3, padx=5, pady=3)
 
-        # Fecha de Registro informativa
         self.lbl_fecha_reg = tk.Label(self.tab_perfil, text="Fecha de Registro: No registrado", fg="purple", font=("Arial", 10, "italic"))
         self.lbl_fecha_reg.pack(pady=3)
         
@@ -108,12 +104,10 @@ class VentanaCliente:
         region = self.ent_region.get().strip()
         tipo_dir = self.combo_tipo_dir.get()
         
-        # Validación obligatoria de todos los campos
         if not all([nombre, correo, telefono, calle, numero, comuna, ciudad, region, tipo_dir]):
             messagebox.showwarning("Atención", "Todos los campos de datos personales y dirección son OBLIGATORIOS.")
             return
 
-        # Buscar si ya existe para mantener su fecha de registro original o asignarle la actual
         cliente_existente = self.db.clientes.find_one({"rut": self.rut_cliente})
         fecha_reg = cliente_existente.get("fecha_registro", datetime.now()) if cliente_existente else datetime.now()
             
@@ -146,7 +140,6 @@ class VentanaCliente:
             self.ent_cor.delete(0, tk.END); self.ent_cor.insert(0, cliente.get("correo", ""))
             self.ent_tel.delete(0, tk.END); self.ent_tel.insert(0, cliente.get("telefono", ""))
             
-            # Cargar dirección embebida
             dir_emb = cliente.get("direccion", {})
             self.ent_calle.delete(0, tk.END); self.ent_calle.insert(0, dir_emb.get("calle", ""))
             self.ent_numero.delete(0, tk.END); self.ent_numero.insert(0, dir_emb.get("numero", ""))
@@ -168,10 +161,10 @@ class VentanaCliente:
             self.tabla_historial.insert("", "end", values=(str(ped["_id"]), fecha_str, f"${ped.get('total_pedido', 0)}", ped.get("estado_pedido", "Ingresado")))
 
     # =========================================================================
-    # MÓDULO 2: CATÁLOGO CON MARCA Y DESCRIPCIÓN
+    # MÓDULO 2: CATÁLOGO Y BÚSQUEDA
     # =========================================================================
     def crear_modulo_2_catalogo(self):
-        tk.Label(self.tab_catalogo, text="Catálogo de Productos", font=("Arial", 12, "bold")).pack(pady=5)
+        tk.Label(self.tab_catalogo, text="Catálogo de Productos Disponibles", font=("Arial", 12, "bold")).pack(pady=5)
         
         frame_busqueda = tk.Frame(self.tab_catalogo)
         frame_busqueda.pack(pady=5, fill="x", padx=20)
@@ -195,7 +188,7 @@ class VentanaCliente:
         frame_acciones_cat = tk.Frame(self.tab_catalogo)
         frame_acciones_cat.pack(pady=10)
         
-        tk.Button(frame_acciones_cat, text="Ver Detalle Extendido (Incluye Descripción)", bg="#9C27B0", fg="white", command=self.consultar_detalle_producto).pack(side="left", padx=10)
+        tk.Button(frame_acciones_cat, text="Ver Detalle Extendido (Descripción)", bg="#9C27B0", fg="white", command=self.consultar_detalle_producto).pack(side="left", padx=10)
         tk.Button(frame_acciones_cat, text="Añadir a mi Orden", bg="#FF9800", fg="white", command=self.pre_anadir_producto).pack(side="left", padx=10)
         
         self.restablecer_catalogo()
@@ -228,7 +221,7 @@ class VentanaCliente:
         id_p = self.tabla_productos.item(sel)['values'][0]
         p = self.db.productos.find_one({"_id": ObjectId(id_p)})
         
-        detalle = f"ID: {p['_id']}\nNombre: {p['nombre_producto']}\nMarca: {p.get('marca','No especificada')}\nCategoría: {p.get('categoria','N/A')}\nPrecio: ${p['precio_unitario']}\nStock: {p['stock']}\n\nDescripción:\n{p.get('descripcion','Sin descripción disponible (Opcional).')}"
+        detalle = f"ID: {p['_id']}\nNombre: {p['nombre_producto']}\nMarca: {p.get('marca','No especificada')}\nCategoría: {p.get('categoria','N/A')}\nPrecio: ${p['precio_unitario']}\nStock: {p['stock']}\n\nDescripción:\n{p.get('descripcion','Sin descripción disponible.')}"
         messagebox.showinfo("Detalle Técnico de Producto", detalle)
 
     def pre_anadir_producto(self):
@@ -258,7 +251,7 @@ class VentanaCliente:
         self.actualizar_vista_carrito()
 
     # =========================================================================
-    # MÓDULO 3: GESTIÓN DE PEDIDOS (USA LA DIRECCIÓN GUARDADA)
+    # MÓDULO 3: GESTIÓN DE PEDIDOS
     # =========================================================================
     def crear_modulo_3_pedidos(self):
         tk.Label(self.tab_gestion_pedidos, text="Borrador del Pedido Actual", font=("Arial", 11, "bold")).pack(pady=5)
@@ -321,16 +314,15 @@ class VentanaCliente:
             messagebox.showwarning("Borrador Vacío", "No has agregado productos a tu orden.")
             return
             
-        # Requerimiento: Buscar la dirección registrada del cliente para adjuntarla al pedido
         cliente = self.db.clientes.find_one({"rut": self.rut_cliente})
         if not cliente or "direccion" not in cliente:
-            messagebox.showerror("Dirección Faltante", "Antes de crear un pedido, debes completar y guardar tu perfil con tu dirección obligatoria en el Módulo 1.")
+            messagebox.showerror("Dirección Faltante", "Debes completar tu perfil y dirección obligatoria en el Módulo 1 antes de ordenar.")
             return
 
         direccion_cliente = cliente["direccion"]
         exito, msg = crear_pedido(self.db, self.rut_cliente, self.carrito_actual, direccion_cliente)
         if exito:
-            messagebox.showinfo("Orden Creada", "¡Pedido confirmado e ingresado exitosamente con tu dirección registrada!")
+            messagebox.showinfo("Orden Creada", "¡Pedido confirmado e ingresado exitosamente!")
             self.vaciar_borrador()
             self.restablecer_catalogo()
             self.buscar_mis_pedidos()
@@ -381,19 +373,21 @@ class VentanaCliente:
         def guardar_cambios_cantidades():
             nuevas_lineas = []
             nuevo_total = 0
+            
+            # 1. Validar existencias
             for id_prod_str, datos in entradas_cantidades.items():
                 try:
                     nueva_cant = int(datos["entry"].get().strip())
                     if nueva_cant < 0: raise ValueError()
                 except:
-                    messagebox.showerror("Error", "Ingrese números válidos.")
+                    messagebox.showerror("Error", "Ingrese números enteros válidos.")
                     return
                 
                 diferencia = nueva_cant - datos["cantidad_anterior"]
                 if diferencia > 0:
                     prod_db = self.db.productos.find_one({"_id": ObjectId(id_prod_str)})
                     if not prod_db or prod_db.get("stock", 0) < diferencia:
-                        messagebox.showerror("Stock Insuficiente", f"No hay stock para {datos['nombre_producto']}.")
+                        messagebox.showerror("Stock Insuficiente", f"No hay stock suficiente para aumentar {datos['nombre_producto']}.")
                         return
                 
                 if nueva_cant > 0:
@@ -401,11 +395,21 @@ class VentanaCliente:
                     nuevo_total += sub
                     nuevas_lineas.append({"id_producto": ObjectId(id_prod_str), "nombre_producto": datos["nombre_producto"], "cantidad": nueva_cant, "precio_unitario": datos["precio_unitario"], "subtotal": sub})
             
+            # 2. Aplicar descuentos/devoluciones de inventario y reajustar los estados
             for id_prod_str, datos in entradas_cantidades.items():
                 nueva_cant = int(datos["entry"].get().strip())
                 diferencia = nueva_cant - datos["cantidad_anterior"]
                 if diferencia != 0:
-                    self.db.productos.update_one({"_id": ObjectId(id_prod_str)}, {"$inc": {"stock": -diferencia}})
+                    id_p_obj = ObjectId(id_prod_str)
+                    self.db.productos.update_one({"_id": id_p_obj}, {"$inc": {"stock": -diferencia}})
+                    
+                    # Control inteligente de estado post-modificación
+                    p_verif = self.db.productos.find_one({"_id": id_p_obj})
+                    if p_verif:
+                        if p_verif.get("stock", 0) <= 0:
+                            self.db.productos.update_one({"_id": id_p_obj}, {"$set": {"estado": "sin stock", "stock": 0}})
+                        elif p_verif.get("stock", 0) > 0:
+                            self.db.productos.update_one({"_id": id_p_obj}, {"$set": {"estado": "disponible"}})
             
             self.db.pedidos.update_one({"_id": ObjectId(id_ped)}, {"$set": {"detalle_productos": nuevas_lineas, "total_pedido": nuevo_total}})
             messagebox.showinfo("Éxito", "Pedido modificado correctamente.")
@@ -424,9 +428,12 @@ class VentanaCliente:
         if estado != "Ingresado":
             messagebox.showerror("Denegado", "Solo se pueden eliminar pedidos en estado 'Ingresado'.")
             return
-        if messagebox.askyesno("Confirmar", "¿Desea eliminar este pedido?"):
+        if messagebox.askyesno("Confirmar", "¿Desea eliminar este pedido y restablecer el stock?"):
             exito, msg = eliminar_pedido_cliente(self.db, id_ped)
             if exito:
+                messagebox.showinfo("Éxito", msg)
                 self.buscar_mis_pedidos()
                 self.restablecer_catalogo()
                 self.cargar_historial_pedidos()
+            else:
+                messagebox.showerror("Error", msg)

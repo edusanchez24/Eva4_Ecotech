@@ -3,8 +3,8 @@ from datetime import datetime
 
 def crear_pedido(db, rut_cliente, items_carrito, direccion_entrega):
     """
-    Crea un nuevo pedido asociándolo al RUT del cliente, descontando stock 
-    y configurando el estado inicial como 'Ingresado'.
+    Crea un nuevo pedido, descuenta stock de forma atómica y actualiza el estado 
+    del producto a 'sin stock' si este llega a 0.
     """
     # 1. Validar Stock de todos los productos primero
     for item in items_carrito:
@@ -17,28 +17,38 @@ def crear_pedido(db, rut_cliente, items_carrito, direccion_entrega):
     detalle_final = []
     
     for item in items_carrito:
-        # Decrementar stock de forma atómica en MongoDB
+        id_p = ObjectId(item['id_producto'])
+        
+        # Decrementar stock de forma atómica
         db.productos.update_one(
-            {"_id": ObjectId(item['id_producto'])},
+            {"_id": id_p},
             {"$inc": {"stock": -item['cantidad']}}
         )
+        
+        # LOGICA AUTOMÁTICA DE ESTADO: Verificar si bajó a 0 o menos
+        prod_verificar = db.productos.find_one({"_id": id_p})
+        if prod_verificar and prod_verificar.get("stock", 0) <= 0:
+            db.productos.update_one(
+                {"_id": id_p},
+                {"$set": {"estado": "sin stock", "stock": 0}}
+            )
         
         subtotal = item['cantidad'] * item['precio_unitario']
         total_pedido += subtotal
         
         detalle_final.append({
-            "id_producto": ObjectId(item['id_producto']),
-            "nombre_producto": item['nombre_producto'], # <-- CORREGIDO: Antes decía item['nombre']
+            "id_producto": id_p,
+            "nombre_producto": item['nombre_producto'],
             "cantidad": item['cantidad'],
             "precio_unitario": item['precio_unitario'],
             "subtotal": subtotal
         })
 
-    # 3. Guardar el documento Pedido con estado inicial 'Ingresado'
+    # 3. Guardar el documento Pedido
     nuevo_pedido = {
         "id_cliente": rut_cliente,
         "fecha_pedido": datetime.now(),
-        "estado_pedido": "Ingresado", # <-- Asegura que empiece en Ingresado
+        "estado_pedido": "Ingresado",
         "total_pedido": total_pedido,
         "direccion_entrega": direccion_entrega,
         "detalle_productos": detalle_final
@@ -46,35 +56,42 @@ def crear_pedido(db, rut_cliente, items_carrito, direccion_entrega):
     
     db.pedidos.insert_one(nuevo_pedido)
     return True, "Pedido procesado y registrado con éxito."
+
+
 def eliminar_pedido_cliente(db, id_pedido):
-    """Elimina un pedido y devuelve el stock retenido a la colección de productos."""
+    """
+    Elimina un pedido en estado 'Ingresado' y devuelve el stock completo a los productos,
+    restableciendo su estado a 'disponible' si correspondiera.
+    """
     try:
         pedido = db.pedidos.find_one({"_id": ObjectId(id_pedido)})
         if not pedido:
-            return False, "El pedido especificado no existe."
+            return False, "Pedido no encontrado."
             
-        # Devolver stock de forma atómica
+        if pedido.get("estado_pedido") != "Ingresado":
+            return False, "Solo se pueden eliminar pedidos en estado 'Ingresado'."
+            
+        # Devolver stock de cada producto embebido en el detalle
         for item in pedido.get("detalle_productos", []):
+            id_p = ObjectId(item["id_producto"])
+            cant_devuelta = item["cantidad"]
+            
+            # Incrementar stock
             db.productos.update_one(
-                {"_id": item["id_producto"]},
-                {"$inc": {"stock": item["cantidad"]}}
+                {"_id": id_p},
+                {"$inc": {"stock": cant_devuelta}}
             )
             
+            # LÓGICA AUTOMÁTICA DE ESTADO: Si vuelve a tener stock, pasa a disponible
+            prod_verificar = db.productos.find_one({"_id": id_p})
+            if prod_verificar and prod_verificar.get("stock", 0) > 0:
+                db.productos.update_one(
+                    {"_id": id_p},
+                    {"$set": {"estado": "disponible"}}
+                )
+                
+        # Eliminar físicamente el documento de la colección
         db.pedidos.delete_one({"_id": ObjectId(id_pedido)})
-        return True, "Pedido eliminado e inventario restablecido correctamente."
+        return True, "Pedido eliminado y stock restablecido con éxito."
     except Exception as e:
-        return False, f"Error al procesar eliminación: {e}"
-    
-def listar_pedidos_por_cliente(db, rut_cliente):
-    return list(db.pedidos.find({"id_cliente": rut_cliente}))
-
-def listar_todos_los_pedidos(db):
-    return list(db.pedidos.find())
-
-def actualizar_estado_pedido(db, id_pedido, nuevo_estado):
-    """Permite al administrador cambiar el estado (Ingresado -> En Proceso -> Entregado)."""
-    db.pedidos.update_one(
-        {"_id": ObjectId(id_pedido)},
-        {"$set": {"estado_pedido": nuevo_estado}}
-    )
-    return True
+        return False, f"Error al eliminar: {str(e)}"
