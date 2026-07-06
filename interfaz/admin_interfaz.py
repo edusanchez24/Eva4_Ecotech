@@ -8,7 +8,7 @@ class VentanaAdmin:
         self.root = root
         self.db = db
         self.root.title("EcoTech - Panel de Administración General")
-        self.root.geometry("950x650")
+        self.root.geometry("950x680")
         
         # Control de Pestañas para los 3 Módulos del Administrador
         tab_control = ttk.Notebook(root)
@@ -86,7 +86,6 @@ class VentanaAdmin:
         if fecha_texto:
             try:
                 inicio_dia = datetime.strptime(fecha_texto, "%Y-%m-%d")
-                # Filtro que abarca desde las 00:00 hasta las 23:59 del día ingresado
                 fin_dia = inicio_dia.replace(hour=23, minute=59, second=59)
                 query["fecha_pedido"] = {"$gte": inicio_dia, "$lte": fin_dia}
             except ValueError:
@@ -111,12 +110,17 @@ class VentanaAdmin:
         pedido = self.db.pedidos.find_one({"_id": ObjectId(id_ped)})
         
         desglose = f"=== DESGLOSE DEL PEDIDO ===\nID: {pedido['_id']}\nCliente: {pedido['id_cliente']}\nEstado: {pedido['estado_pedido']}\nTotal: ${pedido['total_pedido']}\n\n"
-        desglose += "PRODUCTOS ADQUIRIDOS:\n"
         
+        # Mostrar la dirección del pedido si existe
+        if "direccion_entrega" in pedido:
+            d = pedido["direccion_entrega"]
+            desglose += f"Dirección de Envío: {d.get('calle','')} #{d.get('numero','')}, {d.get('comuna','')}, {d.get('ciudad','')}, {d.get('region','')} ({d.get('tipo_direccion','')})\n\n"
+        
+        desglose += "PRODUCTOS ADQUIRIDOS:\n"
         for item in pedido.get("detalle_productos", []):
             desglose += f"- {item['nombre_producto']} x{item['cantidad']} (c/u: ${item['precio_unitario']}) Subtotal: ${item['subtotal']}\n"
             
-        messagebox.showinfo("Detalle de Órden", desglose)
+        messagebox.showinfo("Detalle de Orden", desglose)
 
     def ejecutar_cambio_estado(self):
         sel = self.tabla_pedidos.selection()
@@ -175,7 +179,6 @@ class VentanaAdmin:
         if rut_exacto:
             query["rut"] = rut_exacto
         elif nombre_parcial:
-            # Requerimiento: Búsqueda por coincidencia en el string de nombre
             query["nombre"] = {"$regex": nombre_parcial, "$options": "i"}
             
         for c in self.db.clientes.find(query):
@@ -198,9 +201,18 @@ class VentanaAdmin:
         cliente = self.db.clientes.find_one({"rut": rut_cli})
         pedidos = list(self.db.pedidos.find({"id_cliente": rut_cli}))
         
-        ficha = f"=== DETALLE COMPLETO DEL CLIENTE ===\nRUT: {cliente['rut']}\nNombre: {cliente['nombre']}\nCorreo: {cliente['correo']}\nTeléfono: {cliente['telefono']}\n\n"
-        ficha += f"=== ÓRDENES DE COMPRA ASOCIADAS ({len(pedidos)}) ===\n"
+        f_reg_str = cliente["fecha_registro"].strftime("%Y-%m-%d %H:%M") if "fecha_registro" in cliente else "No especificada"
         
+        ficha = f"=== DETALLE COMPLETO DEL CLIENTE ===\nRUT: {cliente['rut']}\nNombre: {cliente['nombre']}\nCorreo: {cliente['correo']}\nTeléfono: {cliente['telefono']}\nFecha Registro: {f_reg_str}\n\n"
+        
+        # Cargar dirección obligatoria
+        if "direccion" in cliente:
+            d = cliente["direccion"]
+            ficha += f"DIRECCIÓN REGISTRADA:\nCalle: {d.get('calle','')} #{d.get('numero','')}\nComuna: {d.get('comuna','')} | Ciudad: {d.get('ciudad','')}\nRegión: {d.get('region','')} | Tipo: {d.get('tipo_direccion','')}\n\n"
+        else:
+            ficha += "DIRECCIÓN REGISTRADA: No completada aún por el cliente.\n\n"
+
+        ficha += f"=== ÓRDENES DE COMPRA ASOCIADAS ({len(pedidos)}) ===\n"
         for p in pedidos:
             ficha += f"- Pedido ID: {p['_id']} | Total: ${p['total_pedido']} | Estado: {p['estado_pedido']}\n"
             
@@ -228,9 +240,10 @@ class VentanaAdmin:
         tk.Button(frame_buscar_prod, text="Limpiar", command=self.restablecer_productos_admin).pack(side="left", padx=5)
         
         # Tabla de Productos (Muestra ID claramente)
-        self.tabla_productos_adm = ttk.Treeview(self.tab_productos, columns=("ID", "Nombre", "Categoria", "Precio", "Stock"), show="headings", height=5)
+        self.tabla_productos_adm = ttk.Treeview(self.tab_productos, columns=("ID", "Nombre", "Marca", "Categoria", "Precio", "Stock"), show="headings", height=5)
         self.tabla_productos_adm.heading("ID", text="[CLAVE] ID de Objeto NoSQL")
         self.tabla_productos_adm.heading("Nombre", text="Nombre Producto")
+        self.tabla_productos_adm.heading("Marca", text="Marca")
         self.tabla_productos_adm.heading("Categoria", text="Categoría")
         self.tabla_productos_adm.heading("Precio", text="Precio")
         self.tabla_productos_adm.heading("Stock", text="Stock")
@@ -241,7 +254,7 @@ class VentanaAdmin:
         frame_form_prod = tk.LabelFrame(self.tab_productos, text=" Formulario de Datos del Producto ", font=("Arial", 10, "bold"))
         frame_form_prod.pack(fill="x", padx=15, pady=5)
         
-        tk.Label(frame_form_prod, text="ID Producto (Solo lectura para modificar/eliminar):").grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        tk.Label(frame_form_prod, text="ID Producto (Lectura):").grid(row=0, column=0, padx=5, pady=5, sticky="e")
         self.ent_form_id = tk.Entry(frame_form_prod, width=30, state="readonly", fg="red")
         self.ent_form_id.grid(row=0, column=1, padx=5, pady=5, columnspan=3, sticky="w")
         
@@ -249,17 +262,25 @@ class VentanaAdmin:
         self.ent_form_nombre = tk.Entry(frame_form_prod, width=20)
         self.ent_form_nombre.grid(row=1, column=1, padx=5, pady=5)
         
-        tk.Label(frame_form_prod, text="Categoría:").grid(row=1, column=2, padx=5, pady=5, sticky="e")
+        tk.Label(frame_form_prod, text="Marca:").grid(row=1, column=2, padx=5, pady=5, sticky="e")
+        self.ent_form_marca = tk.Entry(frame_form_prod, width=20)
+        self.ent_form_marca.grid(row=1, column=3, padx=5, pady=5)
+        
+        tk.Label(frame_form_prod, text="Categoría:").grid(row=2, column=0, padx=5, pady=5, sticky="e")
         self.ent_form_categoria = tk.Entry(frame_form_prod, width=20)
-        self.ent_form_categoria.grid(row=1, column=3, padx=5, pady=5)
+        self.ent_form_categoria.grid(row=2, column=1, padx=5, pady=5)
         
-        tk.Label(frame_form_prod, text="Precio ($):").grid(row=2, column=0, padx=5, pady=5, sticky="e")
+        tk.Label(frame_form_prod, text="Precio ($):").grid(row=2, column=2, padx=5, pady=5, sticky="e")
         self.ent_form_precio = tk.Entry(frame_form_prod, width=20)
-        self.ent_form_precio.grid(row=2, column=1, padx=5, pady=5)
+        self.ent_form_precio.grid(row=2, column=3, padx=5, pady=5)
         
-        tk.Label(frame_form_prod, text="Stock:").grid(row=2, column=2, padx=5, pady=5, sticky="e")
+        tk.Label(frame_form_prod, text="Stock:").grid(row=3, column=0, padx=5, pady=5, sticky="e")
         self.ent_form_stock = tk.Entry(frame_form_prod, width=20)
-        self.ent_form_stock.grid(row=2, column=3, padx=5, pady=5)
+        self.ent_form_stock.grid(row=3, column=1, padx=5, pady=5)
+
+        tk.Label(frame_form_prod, text="Descripción (Opcional):").grid(row=3, column=2, padx=5, pady=5, sticky="e")
+        self.ent_form_desc = tk.Entry(frame_form_prod, width=20)
+        self.ent_form_desc.grid(row=3, column=3, padx=5, pady=5)
         
         # Botones de Control de Operaciones CRUD
         frame_botones_crud = tk.Frame(self.tab_productos)
@@ -280,56 +301,74 @@ class VentanaAdmin:
         query = {}
         
         if nombre_parcial:
-            query["nombre_producto"] = {"$regex": nombre_parcial, "$options": "i"}
+            query["$or"] = [
+                {"nombre_producto": {"$regex": nombre_parcial, "$options": "i"}},
+                {"marca": {"$regex": nombre_parcial, "$options": "i"}}
+            ]
         if cat_parcial:
             query["categoria"] = {"$regex": cat_parcial, "$options": "i"}
             
         for p in self.db.productos.find(query):
-            self.tabla_productos_adm.insert("", "end", values=(str(p["_id"]), p.get("nombre_producto"), p.get("categoria", "General"), p.get("precio_unitario"), p.get("stock")))
+            self.tabla_productos_adm.insert("", "end", values=(str(p["_id"]), p.get("nombre_producto"), p.get("marca", "EcoBrand"), p.get("categoria", "General"), p.get("precio_unitario"), p.get("stock")))
 
     def restablecer_productos_admin(self):
         self.ent_prod_busqueda.delete(0, tk.END)
         self.ent_prod_cat_busqueda.delete(0, tk.END)
         self.tabla_productos_adm.delete(*self.tabla_productos_adm.get_children())
         for p in self.db.productos.find():
-            self.tabla_productos_adm.insert("", "end", values=(str(p["_id"]), p.get("nombre_producto"), p.get("categoria", "General"), p.get("precio_unitario"), p.get("stock")))
+            self.tabla_productos_adm.insert("", "end", values=(str(p["_id"]), p.get("nombre_producto"), p.get("marca", "EcoBrand"), p.get("categoria", "General"), p.get("precio_unitario"), p.get("stock")))
 
     def cargar_campos_formulario_producto(self, event):
         sel = self.tabla_productos_adm.selection()
         if not sel:
             return
         valores = self.tabla_productos_adm.item(sel)['values']
+        id_p = valores[0]
+        p = self.db.productos.find_one({"_id": ObjectId(id_p)})
         
-        # Desbloquear temporalmente campo ID para rellenarlo
         self.ent_form_id.config(state="normal")
-        self.ent_form_id.delete(0, tk.END); self.ent_form_id.insert(0, valores[0])
+        self.ent_form_id.delete(0, tk.END); self.ent_form_id.insert(0, str(p["_id"]))
         self.ent_form_id.config(state="readonly")
         
-        self.ent_form_nombre.delete(0, tk.END); self.ent_form_nombre.insert(0, valores[1])
-        self.ent_form_categoria.delete(0, tk.END); self.ent_form_categoria.insert(0, valores[2])
-        self.ent_form_precio.delete(0, tk.END); self.ent_form_precio.insert(0, valores[3])
-        self.ent_form_stock.delete(0, tk.END); self.ent_form_stock.insert(0, valores[4])
+        self.ent_form_nombre.delete(0, tk.END); self.ent_form_nombre.insert(0, p.get("nombre_producto",""))
+        self.ent_form_marca.delete(0, tk.END); self.ent_form_marca.insert(0, p.get("marca",""))
+        self.ent_form_categoria.delete(0, tk.END); self.ent_form_categoria.insert(0, p.get("categoria",""))
+        self.ent_form_precio.delete(0, tk.END); self.ent_form_precio.insert(0, str(p.get("precio_unitario",0)))
+        self.ent_form_stock.delete(0, tk.END); self.ent_form_stock.insert(0, str(p.get("stock",0)))
+        self.ent_form_desc.delete(0, tk.END); self.ent_form_desc.insert(0, p.get("descripcion",""))
 
     def limpiar_formulario_producto(self):
         self.ent_form_id.config(state="normal")
         self.ent_form_id.delete(0, tk.END)
         self.ent_form_id.config(state="readonly")
         self.ent_form_nombre.delete(0, tk.END)
+        self.ent_form_marca.delete(0, tk.END)
         self.ent_form_categoria.delete(0, tk.END)
         self.ent_form_precio.delete(0, tk.END)
         self.ent_form_stock.delete(0, tk.END)
+        self.ent_form_desc.delete(0, tk.END)
 
     def agregar_producto_crud(self):
         n = self.ent_form_nombre.get().strip()
+        m = self.ent_form_marca.get().strip()
         c = self.ent_form_categoria.get().strip()
         p = self.ent_form_precio.get().strip()
         s = self.ent_form_stock.get().strip()
+        d = self.ent_form_desc.get().strip()
         
-        if not all([n, c, p, s]):
-            messagebox.showwarning("Atención", "Complete todos los campos del formulario para guardar un nuevo artículo.")
+        if not all([n, m, c, p, s]):
+            messagebox.showwarning("Atención", "Nombre, Marca, Categoría, Precio y Stock son obligatorios.")
             return
         try:
-            prod = {"nombre_producto": n, "categoria": c, "precio_unitario": int(p), "stock": int(s), "estado": "disponible"}
+            prod = {
+                "nombre_producto": n, 
+                "marca": m,
+                "categoria": c, 
+                "precio_unitario": int(p), 
+                "stock": int(s), 
+                "descripcion": d if d else "Sin descripción adicional.",
+                "estado": "disponible"
+            }
             self.db.productos.insert_one(prod)
             messagebox.showinfo("Éxito", f"Producto '{n}' insertado al catálogo NoSQL.")
             self.limpiar_formulario_producto()
@@ -344,14 +383,23 @@ class VentanaAdmin:
             return
             
         n = self.ent_form_nombre.get().strip()
+        m = self.ent_form_marca.get().strip()
         c = self.ent_form_categoria.get().strip()
         p = self.ent_form_precio.get().strip()
         s = self.ent_form_stock.get().strip()
+        d = self.ent_form_desc.get().strip()
         
         try:
             self.db.productos.update_one(
                 {"_id": ObjectId(id_p)},
-                {"$set": {"nombre_producto": n, "categoria": c, "precio_unitario": int(p), "stock": int(s)}}
+                {"$set": {
+                    "nombre_producto": n, 
+                    "marca": m,
+                    "categoria": c, 
+                    "precio_unitario": int(p), 
+                    "stock": int(s),
+                    "descripcion": d
+                }}
             )
             messagebox.showinfo("Éxito", f"Producto con ID {id_p} modificado correctamente.")
             self.limpiar_formulario_producto()
