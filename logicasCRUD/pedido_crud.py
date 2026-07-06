@@ -45,7 +45,25 @@ def crear_pedido(db, rut_cliente, items_carrito, direccion_entrega):
     
     db.pedidos.insert_one(nuevo_pedido)
     return True, "Pedido procesado y registrado con éxito."
-
+def eliminar_pedido_cliente(db, id_pedido):
+    """Elimina un pedido y devuelve el stock retenido a la colección de productos."""
+    try:
+        pedido = db.pedidos.find_one({"_id": ObjectId(id_pedido)})
+        if not pedido:
+            return False, "El pedido especificado no existe."
+            
+        # Devolver stock de forma atómica
+        for item in pedido.get("detalle_productos", []):
+            db.productos.update_one(
+                {"_id": item["id_producto"]},
+                {"$inc": {"stock": item["cantidad"]}}
+            )
+            
+        db.pedidos.delete_one({"_id": ObjectId(id_pedido)})
+        return True, "Pedido eliminado e inventario restablecido correctamente."
+    except Exception as e:
+        return False, f"Error al procesar eliminación: {e}"
+    
 def listar_pedidos_por_cliente(db, rut_cliente):
     return list(db.pedidos.find({"id_cliente": rut_cliente}))
 
